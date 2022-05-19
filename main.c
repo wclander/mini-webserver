@@ -20,6 +20,7 @@ void debug_log(char *message, ...) {
     va_start(ap, message);
     vfprintf(stderr, message, ap);
     va_end(ap);
+    fprintf(stderr, "\n");
 #endif
 }
 
@@ -122,7 +123,7 @@ void http_response(int connfd, int status, char *content, size_t content_length)
                                         + (int) ceil(log10((double) content_length)) // for the contentlength header
                                         + 74;
     char *response = calloc(headers_length + content_length, sizeof(char));
-    sprintf(response, "HTTP/1.1 %i %s\nContent-Type: text/html\nContent-Length: %i\nConnection: close\n\n", status, status_message, content_length);
+    sprintf(response, "HTTP/1.1 %i %s\nContent-Type: text/html\nContent-Length: %i\nConnection: close\n\n", status, status_message, (int) content_length);
     memcpy(response + headers_length, content, content_length);
 
     write(connfd, response, headers_length + content_length);
@@ -150,13 +151,13 @@ int main() {
             switch (errno) {
                 case EAGAIN:
                     debug_log("Could not create threads, limit reached");
-                    continue; // continue with less threads or single-threaded
+                    break; // continue with less threads or single-threaded
                 case ENOMEM:
                     debug_log("Out of memory");
-                    continue;
+                    break;
                 case ENOSYS:
                     debug_log("System does not support multi-threading");
-                    continue;
+                    break;
                 default:
                     debug_log("Unexpected error occured creating threads", errno);
                     exit(errno);
@@ -195,9 +196,11 @@ int main() {
             http_response(connfd, 405, header_error, strlen(header_error)); 
         } else {
             buf[BUF_LENGTH] = 0; // null terminate the header so we can treat it like a string
-            char *filename = buf + 2 + (buf[4] == '/'); // "GET " = 4 - "." = 3
-            filename[0] = '.';
-            filename[1] = '/';
+            char *prefix = "./public";
+            char *filename = malloc(sizeof(char) * (BUF_LENGTH + strlen(prefix))); // can store the entire request if neccessary (prevent overflow attacks)
+            strcpy(filename + strlen(prefix), buf + 3 + (buf[4] == '/')); // put end of path into filename
+            strcpy(filename, prefix);
+            filename[strlen(prefix)] = '/';
             char *end_of_filename = filename;
 
             bool contains_parent = false;
@@ -250,6 +253,8 @@ int main() {
                     }
                 }
             }
+
+            free(filename);
         }
 
         close(connfd);   
