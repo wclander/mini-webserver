@@ -5,7 +5,7 @@ OBJECTS = main.o
 DEPENDS = ${OBJECTS:.o=.d}
 
 ${EXEC}: ${OBJECTS}
-	${CXX} ${CXXFLAGS} ${OBJECTS} -o ${EXEC}
+	${CXX} ${CXXFLAGS} ${OBJECTS} -lm -o ${EXEC}
 
 -include ${DEPENDS}
 
