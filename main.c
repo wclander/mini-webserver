@@ -14,9 +14,13 @@
 #define ERROR_HANDLING
 #define DEBUG
 
+/*
+Prints the gicen message as if printf was used, followed
+by a newline iff DEBUG is defined, does nothing otherwise
+*/
 void debug_log(char *message, ...) {
-    va_list ap;
 #ifdef DEBUG
+    va_list ap;
     va_start(ap, message);
     vfprintf(stderr, message, ap);
     va_end(ap);
@@ -24,6 +28,12 @@ void debug_log(char *message, ...) {
 #endif
 }
 
+/*
+Creates and returns a TCP socket
+
+if ERROR_HANDLING is defined, exits if the resultng socket is
+invalid
+*/
 int safe_create_socket() {
     int fd = socket(AF_INET, SOCK_STREAM, 0); // socket to listen on (IPV4, TCP, None)
 #ifdef ERROR_HANDLING
@@ -54,6 +64,11 @@ int safe_create_socket() {
     return fd;
 }
 
+/*
+Binds the given socket to port_number
+
+if ERROR_HANDLING is defined, exits if binding fails
+*/
 void safe_bind_port(int sock, int port_number) {
     struct sockaddr_in serv_addr;
     memset(&serv_addr, '0', sizeof(serv_addr));
@@ -85,6 +100,11 @@ void safe_bind_port(int sock, int port_number) {
     return;
 }
 
+/*
+Sets the give socket to listen
+
+if ERROR_HANDLING is defined, exits if the call to listen() fails
+*/
 void safe_listen(int sock, int max_connections) {
     if (listen(sock, max_connections) < 0) {
 #ifdef ERROR_HANDLING
@@ -106,6 +126,13 @@ void safe_listen(int sock, int max_connections) {
     return;
 }
 
+/*
+Sends an http response to the socket connfd, with the given 
+status code and message body
+
+The created response is an HTTP/1.1 response with the Connection 
+header set to close
+*/
 void http_response(int connfd, int status, char *content, size_t content_length) {
     char *status_message = NULL;
     switch (status) {
