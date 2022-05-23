@@ -9,34 +9,18 @@
 #include <stdio.h>
 #include <errno.h>
 #include <stdbool.h>
-#include <stdarg.h>
+#include <signal.h>
 
-#define ERROR_HANDLING
-#define DEBUG
-
-/*
-Prints the gicen message as if printf was used, followed
-by a newline iff DEBUG is defined, does nothing otherwise
-*/
-void debug_log(char *message, ...) {
-#ifdef DEBUG
-    va_list ap;
-    va_start(ap, message);
-    vfprintf(stderr, message, ap);
-    va_end(ap);
-    fprintf(stderr, "\n");
-#endif
-}
+#include "logging.h"
+#include "safesockets.h"
 
 /*
 Creates and returns a TCP socket
 
-if ERROR_HANDLING is defined, exits if the resultng socket is
-invalid
+exits if the resulting socket is invalid
 */
 int safe_create_socket() {
     int fd = socket(AF_INET, SOCK_STREAM, 0); // socket to listen on (IPV4, TCP, None)
-#ifdef ERROR_HANDLING
     if (fd == -1) {
         switch errno {
             case EACCES:
@@ -56,18 +40,17 @@ int safe_create_socket() {
                 debug_log("Out of memory");
                 exit(errno);
             default:
-                debug_log("Unexpected error creating socket: ", errno);
+                debug_log("Unexpected error creating socket: %d", errno);
                 exit(errno);
         }
     }
-#endif
     return fd;
 }
 
 /*
 Binds the given socket to port_number
 
-if ERROR_HANDLING is defined, exits if binding fails
+exits if binding fails
 */
 void safe_bind_port(int sock, int port_number) {
     struct sockaddr_in serv_addr;
@@ -76,13 +59,12 @@ void safe_bind_port(int sock, int port_number) {
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     serv_addr.sin_port = htons(port_number);
     if (bind(sock, (struct sockaddr *) &serv_addr, sizeof(serv_addr)) < 0) {
-#ifdef ERROR_HANDLING
         switch (errno) {
             case EACCES:
                 debug_log("Binding Permission denied");
                 exit(errno);
             case EADDRINUSE:
-                debug_log("Port in use: ", port_number);
+                debug_log("Port in use: %d", port_number);
                 exit(errno);
             case EBADF:
             case ENOTSOCK:
@@ -95,7 +77,6 @@ void safe_bind_port(int sock, int port_number) {
                 debug_log("Unexpected Error occured");
                 exit(errno);
         }
-#endif
     }
     return;
 }
@@ -103,11 +84,10 @@ void safe_bind_port(int sock, int port_number) {
 /*
 Sets the give socket to listen
 
-if ERROR_HANDLING is defined, exits if the call to listen() fails
+exits if the call to listen() fails
 */
 void safe_listen(int sock, int max_connections) {
     if (listen(sock, max_connections) < 0) {
-#ifdef ERROR_HANDLING
         switch (errno) {
             case EADDRINUSE:
                 debug_log("Cannot listen, port in use");
@@ -121,7 +101,6 @@ void safe_listen(int sock, int max_connections) {
                 debug_log("Unexpected Error occured");
                 exit(errno);
         }
-#endif
     }
     return;
 }
@@ -161,20 +140,37 @@ void http_response(int connfd, int status, char *content, size_t content_length)
 int main() {
     int port = 8000;
     int max_connections = 1;
-    int sock = safe_create_socket();
     const size_t BUF_LENGTH = 512;
     const size_t MAX_CONTENT = 2048;
+    int sock; 
+
+    set_log_file(NULL);
+ 
+    atexit(close_log_file);
+
+    sock = safe_create_socket();
+
+    void close_sock() {
+        // atexit calls run in reverse order, so we can still use debug_log
+        debug_log("Quitting...");
+        close(sock);
+    }
+
+    atexit(close_sock);
     
+    signal(SIGINT, exit);
+
     safe_bind_port(sock, port);
 
     safe_listen(sock, max_connections);
+
+    debug_log("Listening on port %d", port);
 
     pid_t thread_pid;
     int children = 0;
 
     while(++children < max_connections && (thread_pid = fork())) {
         if (thread_pid == -1) {
-#ifdef ERROR_HANDLING
             switch (errno) {
                 case EAGAIN:
                     debug_log("Could not create threads, limit reached");
@@ -186,10 +182,9 @@ int main() {
                     debug_log("System does not support multi-threading");
                     break;
                 default:
-                    debug_log("Unexpected error occured creating threads", errno);
+                    debug_log("Unexpected error occured creating threads: %d", errno);
                     exit(errno);
             }
-#endif
         }
     }
 

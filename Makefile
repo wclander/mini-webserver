@@ -1,7 +1,7 @@
 CXX = gcc
 CXXFLAGS = -std=c99 -g -Wall -MMD
 EXEC = server
-OBJECTS = main.o
+OBJECTS = main.o logging.o
 DEPENDS = ${OBJECTS:.o=.d}
 
 ${EXEC}: ${OBJECTS}
