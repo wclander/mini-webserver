@@ -3,6 +3,11 @@
     or standard output if no file is specified
 */
 
+#ifndef LOGGING_H
+#define LOGGING_H
+
+#include <stdio.h>
+
 /*
 Prints the given message as if printf was used, followed by a newline
 */
@@ -23,3 +28,5 @@ void open_log_file(char *filename);
 Closes the current log output file if it is not stderr
 */
 void close_log_file();
+
+#endif

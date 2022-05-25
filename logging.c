@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdarg.h>
 
+#include "logging.h"
+
 FILE *logging_print_file = NULL;
 
 void debug_log(char *message, ...) {
