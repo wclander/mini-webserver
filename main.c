@@ -47,7 +47,7 @@ void http_response(int connfd, int status, char *content, size_t content_length)
 } 
 
 int main() {
-    int port = 8000;
+    int port = 3000;
     int max_connections = 1;
     const size_t BUF_LENGTH = 512;
     const size_t MAX_CONTENT = 2048;
@@ -135,7 +135,10 @@ int main() {
             char *end_of_filename = filename;
 
             bool contains_parent = false;
-            while(*end_of_filename != ' ' && *end_of_filename != '\0') {
+            while(*end_of_filename != ' ' &&    // end of url
+                    *end_of_filename != '?' &&  // end of filename and start of query string
+                    *end_of_filename != '#' &&  // end of filename
+                    *end_of_filename != '\0') {
                 ++end_of_filename;
                 if (*end_of_filename == '.' && *(end_of_filename + 1) == '.') {
                     contains_parent = true;
@@ -143,7 +146,7 @@ int main() {
             }
             *end_of_filename = '\0';
 
-            // Deal with remaining headers here
+            // Deal with remaining headers and queries
 
              if (contains_parent) {
                 char *header_error = "<h1>403: Forbidden</h1><p>No</p>";
